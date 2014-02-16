@@ -9,7 +9,7 @@
               la cabecera de los headers y usar solo el HELO 
               Quiza: r->notes("ssl-secure-reneg"=>0/1) ???
               Workarround: Usar el parametro RewriteIPResetHeader
-    Implement Proxy-Protocol:
+    Implement Proxy-Protocol: 
               http://haproxy.1wt.eu/download/1.5/doc/proxy-protocol.txt
     
     = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
