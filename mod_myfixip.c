@@ -109,7 +109,7 @@
 #include <arpa/inet.h>
 
 #define MODULE_NAME "mod_myfixip"
-#define MODULE_VERSION "0.2"
+#define MODULE_VERSION "0.3"
 
 module AP_MODULE_DECLARE_DATA myfixip_module;
 
