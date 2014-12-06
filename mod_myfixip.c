@@ -3,14 +3,13 @@
     
     v0.1 - 2011.05.07, Init version (SSL)
     v0.2 - 2011.05.28, Mix version (SSL & Non-SSL)
+    v0.3 - 2014.12.06, Support for PROXY protocol v1 (haproxy)
     
     == TODO ==
     Security: Detectar automaticamente si es una conexion SSL e ignorar 
               la cabecera de los headers y usar solo el HELO 
               Quiza: r->notes("ssl-secure-reneg"=>0/1) ???
               Workarround: Usar el parametro RewriteIPResetHeader
-    Implement Proxy-Protocol: 
-              http://haproxy.1wt.eu/download/1.5/doc/proxy-protocol.txt
     
     = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
     In HTTP (no SSL): this will fix "remote_ip" field if the request 
@@ -18,10 +17,33 @@
     directly from a one of the IP Addresses specified in the configuration 
     file (RewriteIPAllow directive).
 
-    In HTTPS (SSL): this will fix "remote_ip" field if the connection buffer 
-    begins with "HELOxxxx" (there xxxx is IPv4 in binary format -netorder-) 
-    and the request came directly from a one of the IP Addresses specified 
-    in the configuration file (RewriteIPAllow directive).
+    In HTTPS (SSL): this will fix "remote_ip" field if any of:
+    1) the connection buffer begins with "HELOxxxx" (there xxxx is IPv4 in 
+       binary format -netorder-)
+    2) buffer follow PROXY protocol v1
+
+       - TCP/IPv4 :
+         "PROXY TCP4 255.255.255.255 255.255.255.255 65535 65535\r\n"
+         => 5 + 1 + 4 + 1 + 15 + 1 + 15 + 1 + 5 + 1 + 5 + 2 = 56 chars
+
+       - TCP/IPv6 :
+         "PROXY TCP6 ffff:f...f:ffff ffff:f...f:ffff 65535 65535\r\n"
+         => 5 + 1 + 4 + 1 + 39 + 1 + 39 + 1 + 5 + 1 + 5 + 2 = 104 chars
+
+       - unknown connection (short form) :
+         "PROXY UNKNOWN\r\n"
+         => 5 + 1 + 7 + 2 = 15 chars
+
+       - worst case (optional fields set to 0xff) :
+         "PROXY UNKNOWN ffff:f...f:ffff ffff:f...f:ffff 65535 65535\r\n"
+         => 5 + 1 + 7 + 1 + 39 + 1 + 39 + 1 + 5 + 1 + 5 + 2 = 107 chars
+
+       Complete Proxy-Protocol: 
+         http://haproxy.1wt.eu/download/1.5/doc/proxy-protocol.txt
+
+    The rewrite address of request is allowed from a one of the IP Addresses 
+    specified in the configuration file (RewriteIPAllow directive).
+    
     
     Usage:
     
@@ -92,6 +114,7 @@
 module AP_MODULE_DECLARE_DATA myfixip_module;
 
 #define DEFAULT_PORT    442
+#define PROXY           "PROXY"
 #define HELO            "HELO"
 #define TEST            "TEST"
 #define TEST_RES_OK     "OK" "\n"
@@ -345,6 +368,7 @@ static apr_status_t helocon_filter_in(ap_filter_t *f, apr_bucket_brigade *b, ap_
     my_ctx *ctx = f->ctx;
     my_config *conf = ap_get_module_config (c->base_server->module_config, &myfixip_module);
     const char *str = NULL;
+    char *buf = NULL;
     apr_size_t length = 8;
     apr_bucket *e = NULL;
     apr_bucket *d = NULL;
@@ -380,8 +404,8 @@ static apr_status_t helocon_filter_in(ap_filter_t *f, apr_bucket_brigade *b, ap_
     ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME "::helocon_filter_in IP Connection from: %s to port=%d (2)", c->remote_ip, c->local_addr->port);
 #endif
 
-    // Process CMD tag (4bytes)
-    apr_bucket_read(e, &str, &length, 1);
+    // Read fisrt bucket
+    apr_bucket_read(e, &str, &length, APR_BLOCK_READ);
 
     // TEST Command
     if (strncmp(TEST, str, 4) == 0) {
@@ -405,25 +429,15 @@ static apr_status_t helocon_filter_in(ap_filter_t *f, apr_bucket_brigade *b, ap_
 #ifdef DEBUG
         ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME "::helocon_filter_in DEBUG: CMD=HELO OK");
 #endif
-        apr_bucket_split(e, 4);
+        // delete HELO header
+        apr_bucket_split(e, 8);
         d = e;
         e = APR_BUCKET_NEXT(e);
-        // delete HELO
         APR_BUCKET_REMOVE(d);
-        //apr_bucket_destroy(d);
-
-        // Process IPv4 data (4bytes)
-        apr_bucket_read(e, &str, &length, 1);
-        apr_bucket_split(e, 4);
-        d = e;
-        e = APR_BUCKET_NEXT(e);
-        // delete IPv4
-        APR_BUCKET_REMOVE(d);
-        //apr_bucket_destroy(d);
         d = NULL;
 
         // REWRITE CLIENT IP
-        const char *new_ip = fromBinIPtoString(c->pool, str);
+        const char *new_ip = fromBinIPtoString(c->pool, str+4);
         if (new_ip == NULL) {
             ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME "::helocon_filter_in ERROR: HELO+IP invalid");
             return APR_SUCCESS;
@@ -431,6 +445,86 @@ static apr_status_t helocon_filter_in(ap_filter_t *f, apr_bucket_brigade *b, ap_
 
         rewrite_conn_ip(c, conf, new_ip);
         return APR_SUCCESS;
+    }
+    // PROXY Command
+    if (strncmp(PROXY, str, 5) == 0) {
+#ifdef DEBUG
+        ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME "::helocon_filter_in DEBUG: CMD=PROXY OK");
+#endif
+        char *end = memchr(str, '\r', length - 1);
+        if (!end || end[1] != '\n') {
+            goto ABORT_CONN;
+        }
+        end[0] = ' '; // for next split
+        end[1] = 0;
+#ifdef DEBUG
+        ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME "::helocon_filter_in DEBUG: CMD=PROXY header=%s", str);
+#endif
+        length = (end + 2 - str);
+        int size = length - 1;
+        char *ptr = (char *) str;
+        int tok = 0;
+        char *srcip = NULL;
+        char *dstip = NULL;
+        char *srcport = NULL;
+        char *dstport = NULL;
+        while (ptr) {
+            char *f = memchr(ptr, ' ', size);
+            if (!f) {
+                break;
+            }
+            *f = '\0';
+#ifdef DEBUG
+            ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME "::helocon_filter_in DEBUG: CMD=PROXY token=%s [%d]", ptr, tok);
+#endif
+            // PROXY TCP4 255.255.255.255 255.255.255.255 65535 65535
+            switch (tok) {
+                case 0: // PROXY
+                    break;
+                case 2: // SRCIP
+                    srcip = ptr;
+                    break;
+                case 3: // DSTIP
+                    dstip = ptr;
+                    break;
+                case 4: // SRCPORT
+                    srcport = ptr;
+                    break;
+                case 5: // DSTPORT
+                    dstport = ptr;
+                    break;
+                case 1: // PROTO
+                    if (strncmp("TCP", ptr, 3) == 0) {
+                        if ((ptr[3] == '4') ||
+                            (ptr[3] == '6')) {
+                            break;
+                        }
+                    }
+                default:
+                    srcip = dstip = srcport = dstport = NULL;
+                    goto ABORT_CONN;
+            }
+            size -= (f + 1 - ptr);
+            ptr = f + 1;
+            tok++;
+        }
+        if (!dstport) {
+            goto ABORT_CONN;
+        }
+        // delete PROXY protocol header
+        apr_bucket_split(e, length);
+        d = e;
+        e = APR_BUCKET_NEXT(e);
+        APR_BUCKET_REMOVE(d);
+        d = NULL;
+
+        rewrite_conn_ip(c, conf, srcip);
+        return APR_SUCCESS;
+
+    ABORT_CONN:
+        ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME "::helocon_filter_in ERROR: PROXY protocol header invalid from=%s", c->remote_ip);
+        c->aborted = 1;
+        return APR_ECONNABORTED;
     }
 
     //ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME " DEBUG-ED!!");
