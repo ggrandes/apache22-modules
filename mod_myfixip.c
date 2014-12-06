@@ -368,10 +368,8 @@ static apr_status_t helocon_filter_in(ap_filter_t *f, apr_bucket_brigade *b, ap_
     my_ctx *ctx = f->ctx;
     my_config *conf = ap_get_module_config (c->base_server->module_config, &myfixip_module);
     const char *str = NULL;
-    char *buf = NULL;
     apr_size_t length = 8;
-    apr_bucket *e = NULL;
-    apr_bucket *d = NULL;
+    apr_bucket *e = NULL, *d = NULL;
 
 #ifdef DEBUG
     ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME "::helocon_filter_in IP Connection from: %s to port=%d (1)", c->remote_ip, c->local_addr->port);
@@ -464,10 +462,7 @@ static apr_status_t helocon_filter_in(ap_filter_t *f, apr_bucket_brigade *b, ap_
         int size = length - 1;
         char *ptr = (char *) str;
         int tok = 0;
-        char *srcip = NULL;
-        char *dstip = NULL;
-        char *srcport = NULL;
-        char *dstport = NULL;
+        char *srcip = NULL, *dstip = NULL, *srcport = NULL, *dstport = NULL;
         while (ptr) {
             char *f = memchr(ptr, ' ', size);
             if (!f) {
