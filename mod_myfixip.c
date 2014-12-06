@@ -92,6 +92,8 @@
 // http://svn.apache.org/repos/asf/httpd/httpd/tags/2.4.0/modules/metadata/mod_remoteip.c
 // http://docs.aws.amazon.com/ElasticLoadBalancing/latest/DeveloperGuide/elb-listener-config.html
 // http://docs.aws.amazon.com/ElasticLoadBalancing/latest/DeveloperGuide/enable-proxy-protocol.html
+// http://haproxy.1wt.eu/download/1.5/doc/proxy-protocol.txt
+// http://blog.haproxy.com/haproxy/proxy-protocol/
 
 #define CORE_PRIVATE
 #include "httpd.h"
