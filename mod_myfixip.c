@@ -124,7 +124,7 @@ module AP_MODULE_DECLARE_DATA myfixip_module;
 #endif
 
 //#define DEBUG
-#define PROXY_MAX_LENGTH 107
+#define PROXY_MAX_LENGTH      APR_BUCKET_BUFF_SIZE
 
 // Apache 2.4 or 2.2
 #if AP_SERVER_MINORVERSION_NUMBER > 3
