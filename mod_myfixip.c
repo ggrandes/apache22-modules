@@ -591,7 +591,9 @@ static apr_status_t helocon_filter_in(ap_filter_t *f, apr_bucket_brigade *b, ap_
             goto ABORT_CONN;
         }
         apr_table_set(c->notes, NOTE_REWRITE_IP, srcip);
-        return APR_SUCCESS;
+        //return APR_SUCCESS;
+	// http://www.apachetutor.org/dev/brigades
+	return ap_pass_brigade(f->next, b);
 
     ABORT_CONN:
         ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME "::helocon_filter_in ERROR: PROXY protocol header invalid from=%s to port=%d", _CLIENT_IP, c->local_addr->port);
