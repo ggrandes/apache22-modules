@@ -407,7 +407,7 @@ static apr_status_t helocon_filter_in(ap_filter_t *f, apr_bucket_brigade *b, ap_
     my_ctx *ctx = f->ctx;
     const char *str = NULL;
     apr_size_t length = 0;
-    apr_bucket *e = NULL, *d = NULL;
+    apr_bucket *e = NULL;
 
 #ifdef DEBUG
     ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME "::helocon_filter_in IP Connection from: %s to port=%d (1)", _CLIENT_IP, c->local_addr->port);
@@ -469,10 +469,8 @@ static apr_status_t helocon_filter_in(ap_filter_t *f, apr_bucket_brigade *b, ap_
 #endif
         // delete HELO header
         apr_bucket_split(e, 8);
-        d = e;
+        APR_BUCKET_REMOVE(e);
         e = APR_BUCKET_NEXT(e);
-        APR_BUCKET_REMOVE(d);
-        d = NULL;
 
         // REWRITE CLIENT IP
         const char *new_ip = fromBinIPtoString(c->pool, str+4);
@@ -497,29 +495,39 @@ static apr_status_t helocon_filter_in(ap_filter_t *f, apr_bucket_brigade *b, ap_
             if (s != APR_SUCCESS) {
                 return s;
             }
+#ifdef DEBUG
+            ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME "::helocon_filter_in DEBUG: Data read from: %s to port=%d (3) len=%d, content=%s", _CLIENT_IP, c->local_addr->port, length, str);
+#endif
+            // fix invalid buffer length reported by apr_bucket_read()
+            length = strlen(str);
+#ifdef DEBUG
+            ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME "::helocon_filter_in DEBUG: Data read from: %s to port=%d (4) strlen=%d, content=%s", _CLIENT_IP, c->local_addr->port, length, str);
+#endif
+
             if ((offset + length) > PROXY_MAX_LENGTH) { // Overflow
                 ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME "::helocon_filter_in ERROR: PROXY protocol header overflow from=%s to port=%d length=%d", _CLIENT_IP, c->local_addr->port, (length + offset));
                 goto ABORT_CONN2;
             }
 #ifdef DEBUG
-            ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME "::helocon_filter_in DEBUG: Data read from: %s to port=%d (3) length=%d off=%d", _CLIENT_IP, c->local_addr->port, length, offset);
+            ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME "::helocon_filter_in DEBUG: Data read from: %s to port=%d (5) length=%d off=%d", _CLIENT_IP, c->local_addr->port, length, offset);
 #endif
             char *end = memchr(str, '\r', length - 1);
             if (end) {
-                length = end - str;
-                length += 2;
+                length = end - str + 2;
                 apr_bucket_split(e, length);
+#ifdef DEBUG
+                ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME "::helocon_filter_in DEBUG: Data read from: %s to port=%d (6) - EOL CR found");
+#endif
             }
             memcpy(buf + offset, str, length);
             offset += length;
             buf[offset] = 0;
 #ifdef DEBUG
-            ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME "::helocon_filter_in DEBUG: Data read from: %s to port=%d (4) length=%d newoff=%d (%s)", _CLIENT_IP, c->local_addr->port, length, offset, buf);
+            ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME "::helocon_filter_in DEBUG: Data read from: %s to port=%d (7) length=%d newoff=%d (%s) rest buf='%s' - next round...", _CLIENT_IP, c->local_addr->port, length, offset, buf, str+length);
 #endif
-            d = e;
+            // http://www.apachetutor.org/dev/brigades
+            APR_BUCKET_REMOVE(e);
             e = APR_BUCKET_NEXT(e);
-            APR_BUCKET_REMOVE(d);
-            d = NULL;
             if (end) {
                 break;
             }
