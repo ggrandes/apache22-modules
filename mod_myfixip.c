@@ -539,14 +539,15 @@ static apr_status_t helocon_filter_in(ap_filter_t *f, apr_bucket_brigade *b, ap_
         }
         end[0] = ' '; // for next split
         end[1] = 0;
-#ifdef DEBUG
-        ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME "::helocon_filter_in DEBUG: CMD=PROXY header=%s", buf);
-#endif
         length = (end + 2 - buf);
         int size = length - 1;
         char *ptr = (char *) buf;
         int tok = 0;
         char *srcip = NULL, *dstip = NULL, *srcport = NULL, *dstport = NULL;
+// ptr / buf not accessible / SegFault ?
+//#ifdef DEBUG
+//        ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME "::helocon_filter_in DEBUG: Data read from: %s to port=%d (9) - CMD=PROXY header=%s", ptr);
+//#endif
         while (ptr) {
             char *f = memchr(ptr, ' ', size);
             if (!f) {
@@ -580,6 +581,9 @@ static apr_status_t helocon_filter_in(ap_filter_t *f, apr_bucket_brigade *b, ap_
                         }
                     }
                 default:
+#ifdef DEBUG
+            ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME "::helocon_filter_in DEBUG: CMD=PROXY wrong token=%s [%d] found.", ptr, tok);
+#endif
                     srcip = dstip = srcport = dstport = NULL;
                     goto ABORT_CONN;
             }
@@ -588,8 +592,14 @@ static apr_status_t helocon_filter_in(ap_filter_t *f, apr_bucket_brigade *b, ap_
             tok++;
         }
         if (!dstport) {
+#ifdef DEBUG
+            ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME "::helocon_filter_in DEBUG: CMD=PROXY no dstport found.", ptr, tok);
+#endif
             goto ABORT_CONN;
         }
+#ifdef DEBUG
+        ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME "::helocon_filter_in DEBUG: CMD=PROXY success: %s: %s", NOTE_REWRITE_IP, srcip);
+#endif
         apr_table_set(c->notes, NOTE_REWRITE_IP, srcip);
         //return APR_SUCCESS;
 	// http://www.apachetutor.org/dev/brigades
@@ -602,7 +612,9 @@ static apr_status_t helocon_filter_in(ap_filter_t *f, apr_bucket_brigade *b, ap_
         return APR_ECONNABORTED;
     }
 
-    //ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME " DEBUG-ED!!");
+#ifdef DEBUG
+    ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME "::helocon_filter_in DEBUG-ED!!");
+#endif
 
     return APR_SUCCESS;
 }
