@@ -1,21 +1,21 @@
 /*
     Apache 2.2/2.4 mod_myfixip -- Author: G.Grandes
-    
+
     v0.1 - 2011.05.07, Init version (SSL)
     v0.2 - 2011.05.28, Mix version (SSL & Non-SSL)
     v0.3 - 2014.12.06, Support for PROXY protocol v1 (haproxy)
     v0.4 - 2014.12.06, Porting to Apache 2.4
     v0.5 - 2015.01.14, Backport to Apache 2.2 with dual support 2.2/2.4
                        Fix fragmented TCP frames in AWS-ELB
-    
+
     = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-    In HTTP (no SSL): this will fix "useragent_ip" field if the request 
-    contains an "X-Cluster-Client-Ip" header field, and the request came 
-    directly from a one of the IP Addresses specified in the configuration 
+    In HTTP (no SSL): this will fix "useragent_ip" field if the request
+    contains an "X-Cluster-Client-Ip" header field, and the request came
+    directly from a one of the IP Addresses specified in the configuration
     file (RewriteIPAllow directive).
 
     In HTTPS (SSL): this will fix "useragent_ip" field if any of:
-    1) the connection buffer begins with "HELOxxxx" (there xxxx is IPv4 in 
+    1) the connection buffer begins with "HELOxxxx" (there xxxx is IPv4 in
        binary format -netorder-)
     2) buffer follow PROXY protocol v1
 
@@ -35,42 +35,42 @@
          "PROXY UNKNOWN ffff:f...f:ffff ffff:f...f:ffff 65535 65535\r\n"
          => 5 + 1 + 7 + 1 + 39 + 1 + 39 + 1 + 5 + 1 + 5 + 2 = 107 chars
 
-       Complete Proxy-Protocol: 
+       Complete Proxy-Protocol:
          http://haproxy.1wt.eu/download/1.5/doc/proxy-protocol.txt
 
-    The rewrite address of request is allowed from a one of the IP Addresses 
+    The rewrite address of request is allowed from a one of the IP Addresses
     specified in the configuration file (RewriteIPAllow directive).
-    
-    
+
+
     Usage:
-    
+
     # Global
     <IfModule mod_myfixip.c>
       RewriteIPResetHeader off
       RewriteIPHookPortSSL 443
       RewriteIPAllow 192.168.0.0/16 127.0.0.1
     </IfModule>
-    
+
     # VirtualHost
     <VirtualHost *:443>
       <IfModule mod_myfixip.c>
         RewriteIPResetHeader on
       </IfModule>
     </VirtualHost>
-    
+
     To play with this module first compile it into a
     DSO file and install it into Apache's modules directory
     by running:
-    
+
     $ apxs2 -c -i mod_myfixip.c
 
     = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
-    
+
     http://www.apache.org/licenses/LICENSE-2.0
-    
+
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -213,11 +213,11 @@ static const char *port_config_cmd(cmd_parms *parms, void *mconfig, const char *
 {
     my_config *conf = ap_get_module_config(parms->server->module_config, &myfixip_module);
     const char *err = ap_check_cmd_context (parms, GLOBAL_ONLY);
-    
+
     if (err != NULL) {
         return err;
     }
-    
+
     unsigned long int port = strtol(arg, (char **) NULL, 10);
 
     if ((port > 65535) || (port < 1)) {
@@ -329,7 +329,7 @@ static int check_trusted( conn_rec *c, my_config *conf )
 static int process_connection(conn_rec *c)
 {
     my_config *conf = ap_get_module_config (c->base_server->module_config, &myfixip_module);
-    
+
 #ifdef DEBUG
     ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, MODULE_NAME "::process_connection IP Connection from: %s to port=%d (1)", _CLIENT_IP, c->local_addr->port);
 #endif
@@ -664,7 +664,7 @@ static void register_hooks(apr_pool_t *p)
      */
     ap_register_input_filter(myfixip_filter_name, helocon_filter_in, NULL, AP_FTYPE_CONNECTION + 9);
     ap_hook_post_config(post_config, NULL, NULL, APR_HOOK_MIDDLE);
-    ap_hook_child_init(child_init, NULL, NULL, APR_HOOK_MIDDLE);    
+    ap_hook_child_init(child_init, NULL, NULL, APR_HOOK_MIDDLE);
     ap_hook_process_connection(process_connection, NULL, NULL, APR_HOOK_FIRST);
     ap_hook_post_read_request(post_read_handler, NULL, NULL, APR_HOOK_FIRST);
 }
