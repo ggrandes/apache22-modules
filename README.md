@@ -1,6 +1,6 @@
 # apache22-modules
 
-Miscellaneous Modules for Apache 2.2, licensed under Apache License v2.0.
+Miscellaneous Modules for Apache 2.2 (and maybe 2.4), licensed under Apache License v2.0.
 
 | module  | description |
 | ------- | ----------- |
