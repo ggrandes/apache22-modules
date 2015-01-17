@@ -3,7 +3,7 @@
 Miscellaneous Modules for Apache 2.2 (and maybe 2.4), licensed under Apache License v2.0.
 
 | module  | description | state |
-| ------- | ----------- | ----- |
+| :------ | :---------- | :---- |
 | myfixip | Fix "remote_ip" in HTTP/HTTPS | stable |
 | node    | Add "Node: hostname" to Request/Response Headers | stable |
 | test    | Always response "OK\n" (For check Apache Health) | stable |
