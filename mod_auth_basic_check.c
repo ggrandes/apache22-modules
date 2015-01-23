@@ -1,5 +1,5 @@
 /* 
-**  mod_auth_basic_check.c -- Apache mod_auth_basic_check module
+**  Apache 2.2/2.4 mod_auth_basic_check -- Author: G.Grandes
 **
 **  To play with this module first compile it into a
 **  DSO file and install it into Apache's modules directory 
