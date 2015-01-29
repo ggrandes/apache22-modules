@@ -1,5 +1,5 @@
 /* 
-**  mod_test.c -- Apache mod_test module
+**  Apache 2.2/2.4 mod_test -- Author: G.Grandes
 **
 **  To play with this module first compile it into a
 **  DSO file and install it into Apache's modules directory 
@@ -11,7 +11,10 @@
 **
 **  Usage:
 **
+**  LoadModule test_module /usr/lib/apache2/modules/mod_test.so
+**
 **  <LocationMatch ^/test$>
+**    # Require all granted
 **    order deny,allow
 **    allow from all
 **    SetEnv dontlog
