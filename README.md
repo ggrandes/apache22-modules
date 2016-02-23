@@ -2,13 +2,15 @@
 
 Miscellaneous Modules for Apache 2.2 (and maybe 2.4), licensed under Apache License v2.0.
 
-| module  | description | state |
-| :------ | :---------- | :---- |
-| myfixip | Fix "remote_ip" in HTTP/HTTPS ([PROXY protocol](http://www.haproxy.org/download/1.5/doc/proxy-protocol.txt), like ha-proxy and Amazon ELB) | stable |
-| node    | Add "Node: hostname" to Request/Response Headers | stable |
-| test    | Always response "OK\n" (For check Apache Health) | stable |
-| auth_basic_check | Checks Constraints for Passwords in Auth Basic | stable |
-| random_header | Generate X-Random Header (Variable Length) | beta |
+| module  | description | state | apache ver |
+| :------ | :---------- | :---- | :--------- |
+| myfixip | Fix "remote_ip" in HTTP/HTTPS ([PROXY protocol](http://www.haproxy.org/download/1.5/doc/proxy-protocol.txt), like ha-proxy and Amazon ELB) | stable | 2.2/2.4 |
+| node    | Add "Node: hostname" to Request/Response Headers | stable | 2.2/2.4 |
+| test    | Always response "OK\n" (For check Apache Health) | stable | 2.2/2.4 |
+| auth_basic_check | Checks Constraints for Passwords in Auth Basic | stable | 2.2/2.4 |
+| random_header | Generate X-Random Header (Variable Length) | beta | 2.2/2.4 |
+| header_remote_addr | Add "Client-IP: X" (where X is the remote client ip) to Response Header | stable | 2.2/2.4 |
+
 
 ---
 
