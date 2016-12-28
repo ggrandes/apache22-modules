@@ -41,6 +41,8 @@
 #include "http_protocol.h"
 #include "http_request.h"
 
+#define NOTE_REQ_USER "AUTHBASICCHECK_REQ_USER"
+
 #define DEFAULT_ENABLED 0
 #define DEFAULT_MAX_LENGTH 255
 #define DEFAULT_MIN_LENGTH 8
@@ -245,6 +247,8 @@ static int authenticate_basic_user(request_rec *r)
     if (res) {
         return res;
     }
+
+    apr_table_setn(r->notes, NOTE_REQ_USER, sent_user);
 
     res = check_strong(r, conf, sent_user, sent_pw);
     return (res ? DECLINED : HTTP_FORBIDDEN);
